@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dolphin's iPhone</title>
+<style>
+  :root { --screen:#f2f2f7; --ink:#111; --blue:#0a84ff; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { margin:0; min-height:100vh; display:grid; place-items:center; background:#cfd8dc; font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif; user-select:none; }
+
+  .phone { position:relative; width:310px; height:640px; background:#111; border-radius:50px; padding:10px; box-shadow:0 0 0 3px #555, 0 24px 50px rgba(0,0,0,.35); }
+  .side { position:absolute; right:-6px; top:150px; width:5px; height:80px; background:#555; border-radius:0 3px 3px 0; cursor:pointer; }
+  .screen { position:relative; width:100%; height:100%; border-radius:42px; overflow:hidden; color:#fff;
+            background:#1b4f8a url(wallpaper.jpg) center/cover; }   /* ← 배경화면 사진 */
+  .island { position:absolute; top:10px; left:50%; transform:translateX(-50%); width:90px; height:26px; background:#000; border-radius:13px; z-index:30; }
+  .status { position:absolute; top:12px; left:0; right:0; display:flex; justify-content:space-between; padding:0 26px; font-size:13px; font-weight:600; z-index:25; pointer-events:none; text-shadow:0 1px 3px rgba(0,0,0,.3); }
+  .screen.dark .status { color:var(--ink); text-shadow:none; }
+
+  /* 잠금화면 (같은 사진을 써요) */
+  .lock { position:absolute; inset:0; z-index:20; transition:transform .45s ease; display:flex; flex-direction:column; align-items:center; background:url(wallpaper.jpg) center/cover; text-shadow:0 2px 10px rgba(0,0,0,.35); }
+  .lock.open { transform:translateY(-100%); }
+  #lDate { margin-top:70px; font-size:17px; font-weight:600; }
+  #lTime { font-size:84px; font-weight:700; line-height:1; letter-spacing:-2px; }
+  .tools { position:absolute; bottom:70px; left:0; right:0; display:flex; justify-content:space-between; padding:0 34px; }
+  .circle { width:46px; height:46px; border-radius:50%; background:rgba(0,0,0,.35); display:grid; place-items:center; font-size:20px; backdrop-filter:blur(10px); }
+  .hint { position:absolute; bottom:22px; font-size:12px; }
+  .bar { position:absolute; bottom:8px; left:50%; transform:translateX(-50%); width:110px; height:5px; border-radius:3px; background:#fff; z-index:28; cursor:pointer; }
+  .screen.dark .bar { background:#111; }
+
+  /* 홈 화면 */
+  .home { display:grid; grid-template-columns:repeat(4,1fr); gap:20px 4px; padding:64px 14px; align-content:start; }
+  .app { background:none; border:0; color:#fff; font:inherit; font-size:11px; cursor:pointer; text-shadow:0 1px 3px rgba(0,0,0,.45); }
+  .icon { display:block; width:54px; height:54px; margin:0 auto 5px; border-radius:13px; object-fit:cover; box-shadow:0 2px 6px rgba(0,0,0,.25); }
+
+  /* 앱 공통 */
+  .view { position:absolute; inset:0; z-index:15; background:var(--screen); color:var(--ink); padding:54px 16px 30px; display:flex; flex-direction:column; transform:scale(.85); opacity:0; pointer-events:none; transition:.25s ease; border-radius:42px; overflow:hidden; }
+  .view.open { transform:none; opacity:1; pointer-events:auto; }
+  .page { display:none; flex-direction:column; flex:1; min-height:0; }
+  .page.on { display:flex; }
+  .head { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  h2 { margin:0; font-size:26px; }
+  .link { background:none; border:0; color:var(--blue); font:inherit; font-size:16px; cursor:pointer; padding:4px; }
+  .list { flex:1; overflow-y:auto; background:#fff; border-radius:14px; user-select:text; }
+  .row { display:block; width:100%; text-align:left; background:none; border:0; border-bottom:1px solid #eee; padding:11px 14px; font:inherit; color:var(--ink); cursor:pointer; }
+  .row b { display:block; font-size:15px; }
+  .row span { display:block; font-size:13px; color:#777; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+  /* 메시지 */
+  .chat { flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:6px; padding:6px 0; }
+  .bub { max-width:75%; padding:8px 12px; border-radius:18px; font-size:14px; background:#e5e5ea; align-self:flex-start; user-select:text; }
+  .bub.me { background:var(--blue); color:#fff; align-self:flex-end; }
+
+  /* 알람 */
+  .alarm { display:flex; justify-content:space-between; align-items:center; padding:12px 14px; border-bottom:1px solid #eee; }
+  .alarm .t { font-size:34px; font-weight:300; }
+  .alarm small { color:#777; display:block; font-size:12px; }
+  .sw { width:48px; height:28px; border-radius:14px; background:#ccc; position:relative; border:0; cursor:pointer; }
+  .sw::after { content:""; position:absolute; top:2px; left:2px; width:24px; height:24px; border-radius:50%; background:#fff; transition:.2s; }
+  .sw.on { background:#34c759; } .sw.on::after { left:22px; }
+
+  /* 메모 입력 */
+  input, textarea { width:100%; border:0; border-radius:12px; padding:12px; font:inherit; background:#fff; user-select:text; margin-bottom:10px; }
+  textarea { flex:1; resize:none; }
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="side" id="sideBtn" title="잠금"></div>
+  <div class="screen" id="screen">
+    <div class="island"></div>
+    <div class="status"><span id="sTime">9:41</span><span>5G 🔋</span></div>
+
+    <!-- 홈 화면 -->
+    <div class="home">
+      <button class="app" data-open="msgView"><img class="icon" src="message.png" alt="">메시지</button>
+      <button class="app" data-open="telView"><img class="icon" src="phone.png" alt="">전화번호</button>
+      <button class="app" data-open="almView"><img class="icon" src="clock.png" alt="">시계</button>
+      <button class="app" data-open="memoView"><img class="icon" src="memo.png" alt="">메모</button>
+    </div>
+
+    <!-- 메시지 -->
+    <div class="view" id="msgView">
+      <div class="page on" id="msgList"><div class="head"><h2>메시지</h2></div><div class="list" id="threads"></div></div>
+      <div class="page" id="msgThread"><div class="head"><button class="link" id="msgBack">‹ 목록</button><b id="msgName"></b><span style="width:50px"></span></div><div class="chat" id="chat"></div></div>
+    </div>
+
+    <!-- 전화번호 -->
+    <div class="view" id="telView"><div class="head"><h2>전화번호</h2></div><div class="list" id="contacts"></div></div>
+
+    <!-- 알람 -->
+    <div class="view" id="almView"><div class="head"><h2>알람</h2></div><div class="list" id="alarms"></div></div>
+
+    <!-- 메모 -->
+    <div class="view" id="memoView">
+      <div class="page on" id="memoList"><div class="head"><h2>메모</h2><button class="link" id="memoAdd">＋ 새 메모</button></div><div class="list" id="memos"></div></div>
+      <div class="page" id="memoRead"><div class="head"><button class="link" id="readBack">‹ 목록</button><span></span></div><h2 id="readTitle" style="font-size:22px;margin-bottom:10px"></h2><div class="list" id="readBody" style="padding:14px;white-space:pre-wrap"></div></div>
+      <div class="page" id="memoNew"><div class="head"><button class="link" id="newCancel">취소</button><button class="link" id="newSave"><b>저장</b></button></div><input id="nTitle" placeholder="제목"><textarea id="nBody" placeholder="내용을 적어보세요"></textarea></div>
+    </div>
+
+    <!-- 잠금화면 -->
+    <div class="lock" id="lock">
+      <div id="lDate"></div><div id="lTime">9:41</div>
+      <div class="tools"><div class="circle">🔦</div><div class="circle">📷</div></div>
+      <div class="hint">위로 밀어서 열기</div>
+    </div>
+
+    <div class="bar" id="homeBar" title="홈"></div>
+  </div>
+</div>
+
+<script>
+  /* ====== 내용은 여기서 바꿔요! (연습용 가짜 데이터예요) ====== */
+  const THREADS = [
+    { name:'엄마',   msgs:[ ['them','밥 먹었어?'], ['me','응! 지금 코딩하고 있어'], ['them','우리 딸 최고 😊'] ] },
+    { name:'친구 하나', msgs:[ ['them','내일 같이 놀자!'], ['me','좋아! 몇 시에?'], ['them','2시 어때?'] ] },
+    { name:'학원',   msgs:[ ['them','내일 수업은 3시예요.'] ] },
+  ];
+  const CONTACTS = [
+    { name:'엄마', num:'010-1234-5678' },
+    { name:'아빠', num:'010-2345-6789' },
+    { name:'친구 하나', num:'010-3456-7890' },
+    { name:'학원', num:'02-123-4567' },
+  ];
+  const ALARMS = [
+    { time:'07:30', label:'학교 가기', on:true },
+    { time:'15:00', label:'학원', on:true },
+    { time:'22:00', label:'잘 시간', on:false },
+  ];
+  const DEFAULT_MEMOS = [
+    { title:'오늘 할 일', body:'1. 숙제하기\n2. 코딩하기\n3. 책 읽기' },
+    { title:'먹고 싶은 것', body:'떡볶이, 초콜릿 케이크' },
+  ];
+
+  /* ====== 도구들 ====== */
+  const $ = id => document.getElementById(id);
+  const screen = $('screen'), lock = $('lock');
+  function showPage(view, pageId) { document.querySelectorAll('#'+view+' .page').forEach(p => p.classList.toggle('on', p.id === pageId)); }
+  function row(title, sub, onclick) {
+    const b = document.createElement('button'); b.className = 'row';
+    b.innerHTML = '<b></b><span></span>'; b.children[0].textContent = title; b.children[1].textContent = sub;
+    if (onclick) b.onclick = onclick; return b;
+  }
+
+  /* ====== 잠금 / 앱 열기 ====== */
+  function unlock() { lock.classList.add('open'); }
+  function closeApps() {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('open')); screen.classList.remove('dark');
+    showPage('msgView','msgList'); showPage('memoView','memoList');
+  }
+  function lockPhone() { closeApps(); lock.classList.remove('open'); }
+  let startY = null;
+  lock.onpointerdown = e => startY = e.clientY;
+  lock.onpointerup = e => { if (startY !== null && startY - e.clientY > 50) unlock(); startY = null; };
+  lock.onclick = unlock;
+  $('sideBtn').onclick = lockPhone;
+  $('homeBar').onclick = () => lock.classList.contains('open') ? closeApps() : unlock();
+  document.querySelectorAll('[data-open]').forEach(b => b.onclick = () => { $(b.dataset.open).classList.add('open'); screen.classList.add('dark'); });
+
+  /* ====== 시간 ====== */
+  function tick() {
+    const n = new Date();
+    const t = n.toLocaleTimeString('ko-KR', {hour:'numeric', minute:'2-digit', hour12:false});
+    $('sTime').textContent = t; $('lTime').textContent = t;
+    $('lDate').textContent = n.toLocaleDateString('ko-KR', {month:'long', day:'numeric', weekday:'long'});
+  }
+  tick(); setInterval(tick, 1000);
+
+  /* ====== 메시지 ====== */
+  THREADS.forEach(th => $('threads').appendChild(row(th.name, th.msgs[th.msgs.length-1][1], () => {
+    $('msgName').textContent = th.name; $('chat').innerHTML = '';
+    th.msgs.forEach(([who, text]) => { const d = document.createElement('div'); d.className = 'bub' + (who === 'me' ? ' me' : ''); d.textContent = text; $('chat').appendChild(d); });
+    showPage('msgView','msgThread');
+  })));
+  $('msgBack').onclick = () => showPage('msgView','msgList');
+
+  /* ====== 전화번호 ====== */
+  CONTACTS.forEach(c => $('contacts').appendChild(row(c.name, c.num)));
+
+  /* ====== 알람 ====== */
+  ALARMS.forEach(a => {
+    const d = document.createElement('div'); d.className = 'alarm';
+    d.innerHTML = '<div><div class="t"></div><small></small></div><button class="sw"></button>';
+    d.querySelector('.t').textContent = a.time; d.querySelector('small').textContent = a.label;
+    const sw = d.querySelector('.sw'); sw.classList.toggle('on', a.on);
+    sw.onclick = () => { a.on = !a.on; sw.classList.toggle('on', a.on); };
+    $('alarms').appendChild(d);
+  });
+
+  /* ====== 메모 (새 메모는 브라우저에 저장돼요) ====== */
+  let memos = DEFAULT_MEMOS;
+  try { memos = JSON.parse(localStorage.getItem('memos')) || DEFAULT_MEMOS; } catch (e) {}
+  function drawMemos() {
+    $('memos').innerHTML = '';
+    memos.forEach(m => $('memos').appendChild(row(m.title, m.body.replace(/\n/g,' '), () => {
+      $('readTitle').textContent = m.title; $('readBody').textContent = m.body; showPage('memoView','memoRead');
+    })));
+  }
+  drawMemos();
+  $('readBack').onclick = () => showPage('memoView','memoList');
+  $('memoAdd').onclick = () => { $('nTitle').value = ''; $('nBody').value = ''; showPage('memoView','memoNew'); };
+  $('newCancel').onclick = () => showPage('memoView','memoList');
+  $('newSave').onclick = () => {
+    const title = $('nTitle').value.trim() || '새 메모', body = $('nBody').value.trim();
+    memos.unshift({ title, body });
+    try { localStorage.setItem('memos', JSON.stringify(memos)); } catch (e) {}
+    drawMemos(); showPage('memoView','memoList');
+  };
+</script>
+</body>
+</html>
